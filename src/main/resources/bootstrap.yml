@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: graph-storage-service
+  cloud:
+    config:
+      uri: http://172.17.0.2:8090
