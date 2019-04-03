@@ -37,8 +37,8 @@ public class APIExceptionHandler extends ResponseEntityExceptionHandler {
         }
     }
 
-    @ExceptionHandler(value = DirectedGraphNotFoundException.class)
-    protected ResponseEntity<ErrorMessage> handleDirectedGraphNotFoundException(DirectedGraphNotFoundException ex, WebRequest request) {
+    @ExceptionHandler(value = GraphNotFoundException.class)
+    protected ResponseEntity<ErrorMessage> handleGraphNotFoundException(GraphNotFoundException ex, WebRequest request) {
         ErrorMessage msg = new ErrorMessage(ex.getMessage(), request.getDescription(false));
         return new ResponseEntity<>(msg, HttpStatus.NOT_FOUND);
     }
