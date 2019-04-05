@@ -1,8 +1,10 @@
 package ml.echelon133.services.graphstorage.graph;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
@@ -47,5 +49,19 @@ public class APIExceptionHandler extends ResponseEntityExceptionHandler {
     protected ResponseEntity<ErrorMessage> handleJsonProcessingException(JsonProcessingException ex, WebRequest request) {
         ErrorMessage msg = new ErrorMessage(ex.getMessage(), request.getDescription(false));
         return new ResponseEntity<>(msg, HttpStatus.BAD_REQUEST);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException ex, HttpHeaders headers, HttpStatus status, WebRequest request) {
+        ErrorMessage msg;
+        try {
+            // Try to get the message from the root cause
+            msg = new ErrorMessage(ex.getRootCause().getMessage(), request.getDescription(false));
+        } catch (NullPointerException e) {
+            // If there is no root cause, display the message from ex
+            msg = new ErrorMessage(ex.getMessage(), request.getDescription(false));
+        }
+
+        return new ResponseEntity<>(msg, status);
     }
 }
