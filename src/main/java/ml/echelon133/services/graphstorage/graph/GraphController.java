@@ -1,13 +1,16 @@
 package ml.echelon133.services.graphstorage.graph;
 
+import ml.echelon133.graph.Graph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/graphs")
@@ -15,10 +18,31 @@ public class GraphController {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GraphController.class);
 
+    private GraphRepository graphRepository;
 
-    @GetMapping("/{hash}")
-    public ResponseEntity<String> getGraph(@PathVariable String hash) {
-        LOGGER.info(String.format("GET graph with %s hash", hash));
-        return new ResponseEntity<>(hash, HttpStatus.OK);
+    @Autowired
+    public GraphController(GraphRepository graphRepository) {
+        this.graphRepository = graphRepository;
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Graph<BigDecimal>> getGraph(@PathVariable String id) throws Exception {
+        LOGGER.debug(String.format("getGraph with id %s from the database", id));
+        Graph<BigDecimal> graph = graphRepository.findById(id);
+
+        LOGGER.debug(String.format("Return response with a serialized graph that has an id %s", id));
+        return new ResponseEntity<>(graph, HttpStatus.OK);
+    }
+
+    @PostMapping("/")
+    public ResponseEntity<Map<String, String>> addGraph(@RequestBody Graph<BigDecimal> graph) throws Exception {
+        Map<String, String> response = new HashMap<>();
+
+        LOGGER.debug(String.format("@RequestBody graph deserialized correctly as %s. Attempting saving it.", graph));
+        String id = graphRepository.save(graph);
+
+        response.put("id", id);
+        LOGGER.debug(String.format("Returning response with an id %s of the graph that was just serialized", id));
+        return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 }
