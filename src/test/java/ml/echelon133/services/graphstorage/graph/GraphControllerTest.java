@@ -1,6 +1,5 @@
 package ml.echelon133.services.graphstorage.graph;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import ml.echelon133.graph.Graph;
 import ml.echelon133.graph.Vertex;
 import ml.echelon133.graph.WeightedGraph;
@@ -26,6 +25,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 @RunWith(MockitoJUnitRunner.class)
 public class GraphControllerTest {
@@ -60,7 +60,7 @@ public class GraphControllerTest {
     }
 
     @Test
-    public void getGraphCorrectResponseWhenGraphNotFound() throws Exception {
+    public void getGraphRespondsCorrectlyWhenGraphNotFound() throws Exception {
         String searchedId = "asdf";
         String exceptionMsg = String.format("Graph with id %s not found", searchedId);
 
@@ -77,7 +77,7 @@ public class GraphControllerTest {
     }
 
     @Test
-    public void getGraphCorrectResponseWhenGraphFound() throws Exception {
+    public void getGraphRespondsCorrectlyWhenGraphFound() throws Exception {
         String searchedId = "asdf";
 
         // Test graph
@@ -101,5 +101,244 @@ public class GraphControllerTest {
         // Then
         assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
         assertThat(response.getContentAsString()).isEqualTo(expectedGraphJsonContent.getJson());
+    }
+
+    @Test
+    public void addGraphPayloadMissingVertexesNodeHandledCorrectly() throws Exception {
+        String expectedMessage = "Missing 'vertexes' JSON node.";
+
+        String graphPayload = "{\"edges\":[]}";
+
+        // When
+        MockHttpServletResponse response = mockMvc.perform(post("/api/graphs/")
+                .accept(MediaType.APPLICATION_JSON)
+                .content(graphPayload)
+                .contentType(MediaType.APPLICATION_JSON)).andReturn().getResponse();
+
+        // Then
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(response.getContentAsString()).contains(expectedMessage);
+    }
+
+    @Test
+    public void addGraphPayloadMissingEdgesNodeHandledCorrectly() throws Exception {
+        String expectedMessage = "Missing 'edges' JSON node.";
+
+        String graphPayload = "{\"vertexes\":[]}";
+
+        // When
+        MockHttpServletResponse response = mockMvc.perform(post("/api/graphs/")
+                .accept(MediaType.APPLICATION_JSON)
+                .content(graphPayload)
+                .contentType(MediaType.APPLICATION_JSON)).andReturn().getResponse();
+
+        // Then
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(response.getContentAsString()).contains(expectedMessage);
+    }
+
+    @Test
+    public void addGraphPayloadWrongVertexesTypeHandledCorrectly() throws Exception {
+        String expectedMessage = "'vertexes' is not an array node.";
+
+        String graphPayload = "{\"vertexes\": \"array expected here\", \"edges\": []}";
+
+        // When
+        MockHttpServletResponse response = mockMvc.perform(post("/api/graphs/")
+                .accept(MediaType.APPLICATION_JSON)
+                .content(graphPayload)
+                .contentType(MediaType.APPLICATION_JSON)).andReturn().getResponse();
+
+        // Then
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(response.getContentAsString()).contains(expectedMessage);
+    }
+
+    @Test
+    public void addGraphPayloadWrongEdgesTypeHandledCorrectly() throws Exception {
+        String expectedMessage = "'edges' is not an array node.";
+
+        String graphPayload = "{\"vertexes\": [], \"edges\": \"array expected here\"}";
+
+        // When
+        MockHttpServletResponse response = mockMvc.perform(post("/api/graphs/")
+                .accept(MediaType.APPLICATION_JSON)
+                .content(graphPayload)
+                .contentType(MediaType.APPLICATION_JSON)).andReturn().getResponse();
+
+        // Then
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(response.getContentAsString()).contains(expectedMessage);
+    }
+
+    @Test
+    public void addGraphPayloadWrongVertexTypeHandledCorrectly() throws Exception {
+        String expectedMessage = "Vertex element in 'vertexes' is not textual";
+
+        String graphPayload = "{\"vertexes\": [\"v1\", \"v2\", \"v3\", 4], \"edges\": []}";
+
+        // When
+        MockHttpServletResponse response = mockMvc.perform(post("/api/graphs/")
+                .accept(MediaType.APPLICATION_JSON)
+                .content(graphPayload)
+                .contentType(MediaType.APPLICATION_JSON)).andReturn().getResponse();
+
+        // Then
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(response.getContentAsString()).contains(expectedMessage);
+    }
+
+    @Test
+    public void addGraphPayloadWrongEdgeTypeHandledCorrectly() throws Exception {
+        String expectedMessage = "Edge element in 'edges' is not an object";
+
+        String graphPayload = "{\"vertexes\": [\"v1\", \"v2\"], \"edges\": [1]}";
+
+        // When
+        MockHttpServletResponse response = mockMvc.perform(post("/api/graphs/")
+                .accept(MediaType.APPLICATION_JSON)
+                .content(graphPayload)
+                .contentType(MediaType.APPLICATION_JSON)).andReturn().getResponse();
+
+        // Then
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(response.getContentAsString()).contains(expectedMessage);
+    }
+
+    @Test
+    public void addGraphPayloadNegativeEdgeWeightHandledCorrectly() throws Exception {
+        String expectedMessage = "Edge weight cannot be negative";
+
+        String graphPayload = "{\"vertexes\": [\"v1\", \"v2\"], \"edges\": [{\"source\" : \"v1\", \"destination\" : \"v2\", \"weight\" : -20}]}";
+
+        // When
+        MockHttpServletResponse response = mockMvc.perform(post("/api/graphs/")
+                .accept(MediaType.APPLICATION_JSON)
+                .content(graphPayload)
+                .contentType(MediaType.APPLICATION_JSON)).andReturn().getResponse();
+
+        // Then
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(response.getContentAsString()).contains(expectedMessage);
+    }
+
+    @Test
+    public void addGraphPayloadEdgeMissingSourceHandledCorrectly() throws Exception {
+        String expectedMessage = "Edge object does not contain 'source' field";
+
+        String graphPayload = "{\"vertexes\": [\"v1\", \"v2\"], \"edges\": [{\"destination\" : \"v2\", \"weight\" : 20}]}";
+
+        // When
+        MockHttpServletResponse response = mockMvc.perform(post("/api/graphs/")
+                .accept(MediaType.APPLICATION_JSON)
+                .content(graphPayload)
+                .contentType(MediaType.APPLICATION_JSON)).andReturn().getResponse();
+
+        // Then
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(response.getContentAsString()).contains(expectedMessage);
+    }
+
+    @Test
+    public void addGraphPayloadEdgeMissingDestinationHandledCorrectly() throws Exception {
+        String expectedMessage = "Edge object does not contain 'destination' field";
+
+        String graphPayload = "{\"vertexes\": [\"v1\", \"v2\"], \"edges\": [{\"source\" : \"v1\", \"weight\" : 20}]}";
+
+        // When
+        MockHttpServletResponse response = mockMvc.perform(post("/api/graphs/")
+                .accept(MediaType.APPLICATION_JSON)
+                .content(graphPayload)
+                .contentType(MediaType.APPLICATION_JSON)).andReturn().getResponse();
+
+        // Then
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(response.getContentAsString()).contains(expectedMessage);
+    }
+
+    @Test
+    public void addGraphPayloadEdgeMissingWeightHandledCorrectly() throws Exception {
+        String expectedMessage =  "Edge object does not contain 'weight' field";
+
+        String graphPayload = "{\"vertexes\": [\"v1\", \"v2\"], \"edges\": [{\"source\" : \"v1\", \"destination\" : \"v2\"}]}";
+
+        // When
+        MockHttpServletResponse response = mockMvc.perform(post("/api/graphs/")
+                .accept(MediaType.APPLICATION_JSON)
+                .content(graphPayload)
+                .contentType(MediaType.APPLICATION_JSON)).andReturn().getResponse();
+
+        // Then
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(response.getContentAsString()).contains(expectedMessage);
+    }
+
+    @Test
+    public void addGraphPayloadWrongEdgeSourceTypeHandledCorrectly() throws Exception {
+        String expectedMessage = "Source vertex in Edge is not textual";
+
+        String graphPayload = "{\"vertexes\": [\"v1\", \"v2\"], \"edges\": [{\"source\" : 1010, \"destination\" : \"v2\", \"weight\" : 20}]}";
+
+        // When
+        MockHttpServletResponse response = mockMvc.perform(post("/api/graphs/")
+                .accept(MediaType.APPLICATION_JSON)
+                .content(graphPayload)
+                .contentType(MediaType.APPLICATION_JSON)).andReturn().getResponse();
+
+        // Then
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(response.getContentAsString()).contains(expectedMessage);
+    }
+
+    @Test
+    public void addGraphPayloadWrongEdgeDestinationTypeHandledCorrectly() throws Exception {
+        String expectedMessage = "Destination vertex in Edge is not textual";
+
+        String graphPayload = "{\"vertexes\": [\"v1\", \"v2\"], \"edges\": [{\"source\" : \"v1\", \"destination\" : 1010, \"weight\" : 20}]}";
+
+        // When
+        MockHttpServletResponse response = mockMvc.perform(post("/api/graphs/")
+                .accept(MediaType.APPLICATION_JSON)
+                .content(graphPayload)
+                .contentType(MediaType.APPLICATION_JSON)).andReturn().getResponse();
+
+        // Then
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(response.getContentAsString()).contains(expectedMessage);
+    }
+
+    @Test
+    public void addGraphPayloadEdgeWeightNotNumericHandledCorrectly() throws Exception {
+        String expectedMessage = "Weight cannot be deserialized as BigDecimal";
+
+        String graphPayload = "{\"vertexes\": [\"v1\", \"v2\"], \"edges\": [{\"source\" : \"v1\", \"destination\" : \"v2\", \"weight\" : \"asdf\"}]}";
+
+        // When
+        MockHttpServletResponse response = mockMvc.perform(post("/api/graphs/")
+                .accept(MediaType.APPLICATION_JSON)
+                .content(graphPayload)
+                .contentType(MediaType.APPLICATION_JSON)).andReturn().getResponse();
+
+        // Then
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(response.getContentAsString()).contains(expectedMessage);
+    }
+
+    @Test
+    public void addGraphPayloadInvalidVertexNameReferenceHandledCorrectly() throws Exception {
+        String invalidReferenceEdge = "{\"source\":\"v1\",\"destination\":\"v3\",\"weight\":20}";
+        String graphPayload = String.format("{\"vertexes\": [\"v1\", \"v2\"], \"edges\": [%s]}", invalidReferenceEdge);
+
+        String expectedMessage = "references a vertex that is not present in 'vertexes'";
+
+        // When
+        MockHttpServletResponse response = mockMvc.perform(post("/api/graphs/")
+                .accept(MediaType.APPLICATION_JSON)
+                .content(graphPayload)
+                .contentType(MediaType.APPLICATION_JSON)).andReturn().getResponse();
+
+        // Then
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(response.getContentAsString()).contains(expectedMessage);
     }
 }
