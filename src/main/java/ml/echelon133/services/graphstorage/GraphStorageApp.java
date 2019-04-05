@@ -29,7 +29,7 @@ public class GraphStorageApp {
     private static final Logger LOGGER = LoggerFactory.getLogger(GraphStorageApp.class);
 
     @Bean
-    public ObjectMapper objectMapper() {
+    public static ObjectMapper objectMapper() {
         LOGGER.info("Started setup of ObjectMapper");
         SimpleModule module = new SimpleModule();
         ObjectMapper mapper = new ObjectMapper();
