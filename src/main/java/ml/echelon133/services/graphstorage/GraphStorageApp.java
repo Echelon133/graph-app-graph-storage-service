@@ -18,6 +18,9 @@ import springfox.documentation.spi.DocumentationType;
 import springfox.documentation.spring.web.plugins.Docket;
 import springfox.documentation.swagger2.annotations.EnableSwagger2;
 
+import java.math.BigDecimal;
+
+
 @SpringBootApplication
 @EnableDiscoveryClient
 @EnableSwagger2
@@ -34,12 +37,13 @@ public class GraphStorageApp {
         JavaType vertexType = mapper.constructType(Vertex.class);
         JavaType edgeType = mapper.constructType(Edge.class);
         JavaType graphType = mapper.constructType(Graph.class);
+        JavaType graphBigDecimalType = mapper.getTypeFactory().constructParametricType(Graph.class, BigDecimal.class);
 
         module.addSerializer(new VertexSerializer(vertexType));
         module.addSerializer(new EdgeSerializer(edgeType));
         module.addSerializer(new GraphSerializer(graphType));
 
-        module.addDeserializer(Graph.class, new GraphDeserializer(graphType));
+        module.addDeserializer(Graph.class, new GraphDeserializer(graphBigDecimalType));
 
         mapper.registerModule(module);
 
