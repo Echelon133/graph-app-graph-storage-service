@@ -16,12 +16,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.math.BigDecimal;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -31,6 +33,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 public class GraphControllerTest {
 
     private MockMvc mockMvc;
+
+    private Integer maxEdgesCount = 3;
 
     @Mock
     private GraphRepository graphRepository;
@@ -50,6 +54,9 @@ public class GraphControllerTest {
         // Our mock controller does not use our custom ObjectMapper setup by default
         // We need to set up a message converter
         MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
+
+        // simulate GraphStorageApp reading a config @Value from config files
+        ReflectionTestUtils.setField(GraphStorageApp.class, "maxEdgesCount", maxEdgesCount, Integer.class);
         converter.setObjectMapper(GraphStorageApp.objectMapper());
 
         mockMvc = MockMvcBuilders
@@ -101,6 +108,61 @@ public class GraphControllerTest {
         // Then
         assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
         assertThat(response.getContentAsString()).isEqualTo(expectedGraphJsonContent.getJson());
+    }
+
+    @Test
+    public void addGraphRespondsCorrectlyWhenPayloadNumberOfEdgesEqualToMaxEdgesCount() throws Exception {
+        String graphId = "asdf-asdf-asdf-asdf";
+
+        // Test graph
+        Graph<BigDecimal> graph = new WeightedGraph<>();
+        graph.addVertex(new Vertex<>("v1"));
+        graph.addVertex(new Vertex<>("v2"));
+
+        for (int i = 0; i < maxEdgesCount; i++) {
+            graph.addEdge(graph.findVertex("v1"), graph.findVertex("v2"), new BigDecimal(5));
+        }
+
+        JsonContent<Graph<BigDecimal>> graphPayload = jsonGraph.write(graph);
+
+        // Given
+        given(graphRepository.save(any())).willReturn(graphId);
+
+        // When
+        MockHttpServletResponse response = mockMvc.perform(post("/api/graphs/")
+                .accept(MediaType.APPLICATION_JSON)
+                .content(graphPayload.getJson())
+                .contentType(MediaType.APPLICATION_JSON)).andReturn().getResponse();
+
+        // Then
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.CREATED.value());
+        assertThat(response.getContentAsString()).contains(graphId);
+    }
+
+    @Test
+    public void addGraphPayloadNumberOfEdgesExceedsMaxEdgesCountHandledCorrectly() throws Exception {
+        String expectedMessage = String.format("Cannot accept graphs that contain more than %d edges", maxEdgesCount);
+
+        // Test graph
+        Graph<BigDecimal> graph = new WeightedGraph<>();
+        graph.addVertex(new Vertex<>("v1"));
+        graph.addVertex(new Vertex<>("v2"));
+
+        for (int i = 0; i < maxEdgesCount; i++) {
+            graph.addEdge(graph.findVertex("v1"), graph.findVertex("v2"), new BigDecimal(5));
+        }
+
+        JsonContent<Graph<BigDecimal>> graphPayload = jsonGraph.write(graph);
+
+        // When
+        MockHttpServletResponse response = mockMvc.perform(post("/api/graphs/")
+                .accept(MediaType.APPLICATION_JSON)
+                .content(graphPayload.getJson())
+                .contentType(MediaType.APPLICATION_JSON)).andReturn().getResponse();
+
+        // Then
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(response.getContentAsString()).contains(expectedMessage);
     }
 
     @Test
