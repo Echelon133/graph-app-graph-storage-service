@@ -7,6 +7,7 @@ import ml.echelon133.graph.*;
 import ml.echelon133.graph.json.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
@@ -29,7 +30,7 @@ public class GraphStorageApp {
     private static final Logger LOGGER = LoggerFactory.getLogger(GraphStorageApp.class);
 
     @Bean
-    public static ObjectMapper objectMapper() {
+    public static ObjectMapper objectMapper(@Value("${graphs.storage.maxEdgesCount}") Integer maxEdgesCount) {
         LOGGER.info("Started setup of ObjectMapper");
         SimpleModule module = new SimpleModule();
         ObjectMapper mapper = new ObjectMapper();
@@ -43,7 +44,14 @@ public class GraphStorageApp {
         module.addSerializer(new EdgeSerializer(edgeType));
         module.addSerializer(new GraphSerializer(graphType));
 
-        module.addDeserializer(Graph.class, new GraphDeserializer(graphBigDecimalType));
+        // if there is no maxEdgesCount value in config - add a deserializer without any edge number limit
+        if (maxEdgesCount != null) {
+            LOGGER.info(String.format("Setting maxEdgesCount of GraphDeserializer to %d", maxEdgesCount));
+            module.addDeserializer(Graph.class, new GraphDeserializer(graphBigDecimalType, maxEdgesCount));
+        } else {
+            LOGGER.info("Unable to read maxEdgesCount from config. GraphDeserializer will deserialize without any limits");
+            module.addDeserializer(Graph.class, new GraphDeserializer(graphBigDecimalType));
+        }
 
         mapper.registerModule(module);
 
