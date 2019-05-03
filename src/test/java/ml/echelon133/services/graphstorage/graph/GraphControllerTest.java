@@ -49,15 +49,12 @@ public class GraphControllerTest {
 
     @Before
     public void before() {
-        JacksonTester.initFields(this, GraphStorageApp.objectMapper());
+        JacksonTester.initFields(this, GraphStorageApp.objectMapper(maxEdgesCount));
 
         // Our mock controller does not use our custom ObjectMapper setup by default
         // We need to set up a message converter
         MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
-
-        // simulate GraphStorageApp reading a config @Value from config files
-        ReflectionTestUtils.setField(GraphStorageApp.class, "maxEdgesCount", maxEdgesCount, Integer.class);
-        converter.setObjectMapper(GraphStorageApp.objectMapper());
+        converter.setObjectMapper(GraphStorageApp.objectMapper(maxEdgesCount));
 
         mockMvc = MockMvcBuilders
                 .standaloneSetup(graphController)
@@ -148,7 +145,7 @@ public class GraphControllerTest {
         graph.addVertex(new Vertex<>("v1"));
         graph.addVertex(new Vertex<>("v2"));
 
-        for (int i = 0; i < maxEdgesCount; i++) {
+        for (int i = 0; i <= maxEdgesCount; i++) {
             graph.addEdge(graph.findVertex("v1"), graph.findVertex("v2"), new BigDecimal(5));
         }
 
