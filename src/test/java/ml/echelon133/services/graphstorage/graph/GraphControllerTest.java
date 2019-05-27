@@ -16,7 +16,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -389,6 +388,24 @@ public class GraphControllerTest {
         String graphPayload = String.format("{\"vertexes\": [\"v1\", \"v2\"], \"edges\": [%s]}", invalidReferenceEdge);
 
         String expectedMessage = "references a vertex that is not present in 'vertexes'";
+
+        // When
+        MockHttpServletResponse response = mockMvc.perform(post("/api/graphs/")
+                .accept(MediaType.APPLICATION_JSON)
+                .content(graphPayload)
+                .contentType(MediaType.APPLICATION_JSON)).andReturn().getResponse();
+
+        // Then
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(response.getContentAsString()).contains(expectedMessage);
+    }
+
+    @Test
+    public void addGraphDuplicateVertexNameHandledCorrectly() throws Exception {
+        String vertexName = "v1";
+        String expectedMessage = String.format("Vertex with name %s already belongs to the graph", vertexName);
+
+        String graphPayload = String.format("{\"vertexes\": [\"%s\", \"%s\"], \"edges\": []}", vertexName, vertexName);
 
         // When
         MockHttpServletResponse response = mockMvc.perform(post("/api/graphs/")
