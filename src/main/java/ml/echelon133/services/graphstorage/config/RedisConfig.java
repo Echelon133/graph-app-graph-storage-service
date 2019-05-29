@@ -67,7 +67,20 @@ public class RedisConfig {
     }
 
     @Bean
-    public RedisTemplate<String, Graph<BigDecimal>> redisTemplate() {
+    public RedisTemplate<String, String> vertexRedisTemplate() {
+        RedisTemplate<String, String> redisTemplate = new RedisTemplate<>();
+
+        redisTemplate.setConnectionFactory(jedisConnectionFactory());
+        redisTemplate.setKeySerializer(new StringRedisSerializer());
+        redisTemplate.setValueSerializer(new StringRedisSerializer());
+
+        LOGGER.info("Instantiating RedisTemplate<String, String> bean");
+
+        return redisTemplate;
+    }
+
+    @Bean
+    public RedisTemplate<String, Graph<BigDecimal>> graphRedisTemplate() {
         RedisTemplate<String, Graph<BigDecimal>> redisTemplate = new RedisTemplate<>();
 
         redisTemplate.setConnectionFactory(jedisConnectionFactory());
