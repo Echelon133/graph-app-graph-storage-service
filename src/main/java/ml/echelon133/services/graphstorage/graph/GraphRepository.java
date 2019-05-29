@@ -40,6 +40,12 @@ public class GraphRepository {
     public String save(Graph<BigDecimal> graph) {
         String graphId = UUID.randomUUID().toString();
 
+        // save a set of vertex names needed for vertex membership testing
+        LOGGER.debug(String.format("Method save() tries to save a set of vertex names of a graph %s with id %s", graph, graphId));
+        graph.getVertexes().forEach(
+                vertex -> vertexOpsForSet.add(graphId, vertex.getName())
+        );
+
         LOGGER.debug(String.format("Method save() tries to save graph %s with id %s", graph, graphId));
         graphOpsForHash.put(GRAPH_KEY, graphId, graph);
 
