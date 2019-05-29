@@ -11,6 +11,7 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.SetOperations;
 
 import java.math.BigDecimal;
 
@@ -23,6 +24,9 @@ public class GraphRepositoryTest {
 
     @Mock
     private RedisTemplate<String, Graph<BigDecimal>> redisTemplate;
+
+    @Mock
+    private SetOperations<String, String> setOperations;
 
     @Mock
     private HashOperations<String, String, Graph<BigDecimal>> hashOperations;
@@ -39,7 +43,9 @@ public class GraphRepositoryTest {
         GraphRepository uses <String, String, Graph<BigDecimal> and this demands <String, Object, Object>)
         There is probably another way, but this is a quick and simple solution
         */
-        graphRepository.setOpsForHash(hashOperations);
+        graphRepository.setGraphOpsForHash(hashOperations);
+
+        graphRepository.setVertexOpsForSet(setOperations);
     }
 
     @Test
@@ -102,5 +108,58 @@ public class GraphRepositoryTest {
 
         // Then
         assertThat(retrievedGraph).isEqualTo(graph);
+    }
+
+    @Test
+    public void graphHasVertexThrowsGraphNotFoundExceptionWhenGraphIsNotFound() {
+        String searchedId = "test";
+
+        String expectedMsg = "Graph with id test not found";
+        String receivedMsg = "";
+
+        // Given
+        given(hashOperations.hasKey(eq("DirectedGraph"), eq(searchedId))).willReturn(false);
+
+        // When
+        try {
+            graphRepository.graphHasVertex(searchedId, "testVertex");
+        } catch (GraphNotFoundException ex) {
+            receivedMsg = ex.getMessage();
+        }
+
+        // Then
+        assertThat(receivedMsg).isEqualTo(expectedMsg);
+    }
+
+    @Test
+    public void graphHasVertexReturnsTrueWhenVertexIsMember() throws Exception {
+        String graphId = "test";
+        String vertexName = "test";
+
+        // Given
+        given(hashOperations.hasKey(eq("DirectedGraph"), eq(graphId))).willReturn(true);
+        given(setOperations.isMember(eq(graphId), eq(vertexName))).willReturn(true);
+
+        // When
+        Boolean result = graphRepository.graphHasVertex(graphId, vertexName);
+
+        // Then
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    public void graphHasVertexReturnsFalseWhenVertexIsNotMember() throws Exception {
+        String graphId = "test";
+        String vertexName = "test";
+
+        // Given
+        given(hashOperations.hasKey(eq("DirectedGraph"), eq(graphId))).willReturn(true);
+        given(setOperations.isMember(eq(graphId), eq(vertexName))).willReturn(false);
+
+        // When
+        Boolean result = graphRepository.graphHasVertex(graphId, vertexName);
+
+        // Then
+        assertThat(result).isFalse();
     }
 }
