@@ -417,4 +417,60 @@ public class GraphControllerTest {
         assertThat(response.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
         assertThat(response.getContentAsString()).contains(expectedMessage);
     }
+
+    @Test
+    public void checkGraphVertexStatusRespondsCorrectlyWhenGraphNotFound() throws Exception {
+        String searchedId = "asdf";
+        String vertexName = "test";
+
+        String exceptionMsg = String.format("Graph with id %s not found", searchedId);
+
+        // Given
+        given(graphRepository.graphHasVertex(eq(searchedId), eq(vertexName))).willThrow(new GraphNotFoundException(exceptionMsg));
+
+        // When
+        MockHttpServletResponse response = mockMvc.perform(get("/api/graphs/" + searchedId + "/vertexes")
+                .param("name", vertexName)
+                .accept(MediaType.APPLICATION_JSON)).andReturn().getResponse();
+
+        // Then
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.NOT_FOUND.value());
+        assertThat(response.getContentAsString()).contains(exceptionMsg);
+    }
+
+    @Test
+    public void checkGraphVertexStatusRespondsCorrectlyWhenGraphHasVertexIsTrue() throws Exception {
+        String searchedId = "asdf";
+        String vertexName = "test";
+
+        // Given
+        given(graphRepository.graphHasVertex(eq(searchedId), eq(vertexName))).willReturn(true);
+
+        // When
+        MockHttpServletResponse response = mockMvc.perform(get("/api/graphs/" + searchedId + "/vertexes")
+                .param("name", vertexName)
+                .accept(MediaType.APPLICATION_JSON)).andReturn().getResponse();
+
+        // Then
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
+        assertThat(response.getContentAsString()).contains("{\"contains\":true}");
+    }
+
+    @Test
+    public void checkGraphVertexStatusRespondsCorrectlyWhenGraphHasVertexIsFalse() throws Exception {
+        String searchedId = "asdf";
+        String vertexName = "test";
+
+        // Given
+        given(graphRepository.graphHasVertex(eq(searchedId), eq(vertexName))).willReturn(false);
+
+        // When
+        MockHttpServletResponse response = mockMvc.perform(get("/api/graphs/" + searchedId + "/vertexes")
+                .param("name", vertexName)
+                .accept(MediaType.APPLICATION_JSON)).andReturn().getResponse();
+
+        // Then
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
+        assertThat(response.getContentAsString()).contains("{\"contains\":false}");
+    }
 }
