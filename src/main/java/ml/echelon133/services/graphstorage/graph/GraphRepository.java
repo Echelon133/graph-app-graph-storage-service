@@ -37,6 +37,18 @@ public class GraphRepository {
         LOGGER.info("Instantiated GraphRepository");
     }
 
+    public Boolean graphHasVertex(String graphId, String vertexName) throws GraphNotFoundException {
+        if (!graphOpsForHash.hasKey(GRAPH_KEY, graphId)) {
+            String msg = String.format("Graph with id %s not found", graphId);
+            LOGGER.debug(msg);
+            throw new GraphNotFoundException(msg);
+        }
+
+        Boolean contains = vertexOpsForSet.isMember(graphId, vertexName);
+        LOGGER.debug(String.format("Method graphHasVertex returns %s for graph with id %s and vertexName %s", contains, graphId, vertexName));
+        return contains;
+    }
+
     public String save(Graph<BigDecimal> graph) {
         String graphId = UUID.randomUUID().toString();
 
