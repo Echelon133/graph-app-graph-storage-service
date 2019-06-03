@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.SetOperations;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
@@ -16,25 +17,51 @@ public class GraphRepository {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GraphRepository.class);
 
-    private RedisTemplate<String, Graph<BigDecimal>> redisTemplate;
-    private HashOperations<String, String, Graph<BigDecimal>> opsForHash;
+    private RedisTemplate<String, String> vertexRedisTemplate;
+    private RedisTemplate<String, Graph<BigDecimal>> graphRedisTemplate;
+
+    private SetOperations<String, String> vertexOpsForSet;
+    private HashOperations<String, String, Graph<BigDecimal>> graphOpsForHash;
 
     private final String GRAPH_KEY = "DirectedGraph";
 
     @Autowired
-    public GraphRepository(RedisTemplate<String, Graph<BigDecimal>> redisTemplate) {
-        this.redisTemplate = redisTemplate;
-        this.opsForHash = redisTemplate.opsForHash();
+    public GraphRepository(RedisTemplate<String, String> vertexRedisTemplate,
+                           RedisTemplate<String, Graph<BigDecimal>> graphRedisTemplate) {
+
+        this.vertexRedisTemplate = vertexRedisTemplate;
+        this.vertexOpsForSet = vertexRedisTemplate.opsForSet();
+
+        this.graphRedisTemplate = graphRedisTemplate;
+        this.graphOpsForHash = graphRedisTemplate.opsForHash();
         LOGGER.info("Instantiated GraphRepository");
+    }
+
+    public Boolean graphHasVertex(String graphId, String vertexName) throws GraphNotFoundException {
+        if (!graphOpsForHash.hasKey(GRAPH_KEY, graphId)) {
+            String msg = String.format("Graph with id %s not found", graphId);
+            LOGGER.debug(msg);
+            throw new GraphNotFoundException(msg);
+        }
+
+        Boolean contains = vertexOpsForSet.isMember(graphId, vertexName);
+        LOGGER.debug(String.format("Method graphHasVertex returns %s for graph with id %s and vertexName %s", contains, graphId, vertexName));
+        return contains;
     }
 
     public String save(Graph<BigDecimal> graph) {
         String graphId = UUID.randomUUID().toString();
 
-        LOGGER.debug(String.format("Method save() tries to save graph %s with id %s", graph, graphId));
-        opsForHash.put(GRAPH_KEY, graphId, graph);
+        // save a set of vertex names needed for vertex membership testing
+        LOGGER.debug(String.format("Method save() tries to save a set of vertex names of a graph %s with id %s", graph, graphId));
+        graph.getVertexes().forEach(
+                vertex -> vertexOpsForSet.add(graphId, vertex.getName())
+        );
 
-        if (opsForHash.hasKey(GRAPH_KEY, graphId)) {
+        LOGGER.debug(String.format("Method save() tries to save graph %s with id %s", graph, graphId));
+        graphOpsForHash.put(GRAPH_KEY, graphId, graph);
+
+        if (graphOpsForHash.hasKey(GRAPH_KEY, graphId)) {
             LOGGER.debug(String.format("Graph %s was correctly saved with id %s", graph, graphId));
             return graphId;
         }
@@ -44,20 +71,26 @@ public class GraphRepository {
     }
 
     public Graph<BigDecimal> findById(String id) throws GraphNotFoundException {
-        if (!opsForHash.hasKey(GRAPH_KEY, id)) {
+        if (!graphOpsForHash.hasKey(GRAPH_KEY, id)) {
             String msg = String.format("Graph with id %s not found", id);
             LOGGER.debug(msg);
             throw new GraphNotFoundException(msg);
         }
 
         LOGGER.debug(String.format("Graph with id %s found", id));
-        return opsForHash.get(GRAPH_KEY, id);
+        return graphOpsForHash.get(GRAPH_KEY, id);
     }
 
+
     // Only needed for setting mocks of HashOperations
-    // There is no HashOperations bean, so there is no need to worry about runtime swaps of this dependency
-    public void setOpsForHash(HashOperations<String, String, Graph<BigDecimal>> opsForHash) {
-        this.opsForHash = opsForHash;
+    public void setGraphOpsForHash(HashOperations<String, String, Graph<BigDecimal>> opsForHash) {
+        this.graphOpsForHash = opsForHash;
         LOGGER.debug(String.format("GraphRepository's HashOperations set manually to type: %s", opsForHash.getClass()));
+    }
+
+    // Only needed for setting mocks of SetOperations
+    public void setVertexOpsForSet(SetOperations<String, String> opsForSet) {
+        this.vertexOpsForSet = opsForSet;
+        LOGGER.debug(String.format("GraphRepository's SetOperations set manually to type: %s", opsForSet.getClass()));
     }
 }

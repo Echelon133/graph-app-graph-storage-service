@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -32,6 +33,17 @@ public class GraphController {
 
         LOGGER.debug(String.format("Return response with a serialized graph that has an id %s", id));
         return new ResponseEntity<>(graph, HttpStatus.OK);
+    }
+
+    @GetMapping("/{id}/vertexes")
+    public ResponseEntity<Map<String, Boolean>> checkGraphVertexStatus(@PathVariable String id, @RequestParam String name) throws Exception {
+        LOGGER.debug(String.format("checkGraphVertexStatus of vertex %s in a graph with id %s", name, id));
+
+        Boolean contains = graphRepository.graphHasVertex(id, name);
+
+        Map<String, Boolean> response = Collections.singletonMap("contains", contains);
+        return new ResponseEntity<>(response, HttpStatus.OK);
+
     }
 
     @PostMapping("/")
